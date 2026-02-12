@@ -22,7 +22,8 @@ export interface Patient {
   patientName: string;
   status: string;
   statusBgColor: string;
-  estimatedTime: string;
+  estimatedTime: string; // Keep for backward compatibility
+  appointmentTime?: string; // Actual appointment slot time
   appointmentId: number;
   statusCode: string;
 }

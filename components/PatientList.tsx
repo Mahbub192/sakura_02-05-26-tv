@@ -8,7 +8,8 @@ interface Patient {
   patientName: string;
   status: string;
   statusBgColor: string;
-  estimatedTime: string;
+  estimatedTime: string; // Keep for backward compatibility
+  appointmentTime?: string; // Actual appointment slot time
   appointmentId: number;
   statusCode: string;
 }
@@ -23,26 +24,49 @@ export default function PatientList({ patients, breakStatus, appointmentNumber }
   const scrollViewRef = useRef<ScrollView>(null);
   const previousRunningIndexRef = useRef<number>(-1);
 
-  // Sort patients: Maintain serial order (1,2,3,4,5,6,7,8,9...), Running at top
+  // Sort patients: By time (soto theke bro - morning to evening), Running at top
   const sortedPatients = React.useMemo(() => {
-    // Sort all patients by serial number first (maintain natural order)
-    const sortedBySerial = [...patients].sort((a, b) => a.serialNumber - b.serialNumber);
+    // Helper function to convert time string to minutes for comparison
+    const timeToMinutes = (timeStr: string): number => {
+      if (!timeStr || timeStr === 'N/A') return Infinity; // Put times without time at end
+      
+      // Parse time string like "11:24 AM" or "2:33 PM"
+      const parts = timeStr.match(/(\d+):(\d+)\s*(AM|PM)/i);
+      if (!parts) return Infinity;
+      
+      let hours = parseInt(parts[1], 10);
+      const minutes = parseInt(parts[2], 10);
+      const period = parts[3].toUpperCase();
+      
+      // Convert to 24-hour format
+      if (period === 'PM' && hours !== 12) {
+        hours += 12;
+      } else if (period === 'AM' && hours === 12) {
+        hours = 0;
+      }
+      
+      return hours * 60 + minutes;
+    };
     
-    // Find running patient
-    const runningIndex = sortedBySerial.findIndex(p => p.statusCode === 'running');
+    // Sort by time (soto theke bro - morning to evening)
+    const sortedByTime = [...patients].sort((a, b) => {
+      // Running patient always goes to top
+      if (a.statusCode === 'running' && b.statusCode !== 'running') return -1;
+      if (a.statusCode !== 'running' && b.statusCode === 'running') return 1;
+      
+      // If both are running or both are not running, sort by time
+      const timeA = timeToMinutes(a.appointmentTime || a.estimatedTime || '');
+      const timeB = timeToMinutes(b.appointmentTime || b.estimatedTime || '');
+      
+      if (timeA !== timeB) {
+        return timeA - timeB; // Sort by time (smaller time first)
+      }
+      
+      // If times are equal, sort by serial number
+      return a.serialNumber - b.serialNumber;
+    });
     
-    if (runningIndex === -1) {
-      // No running patient, return as is
-      return sortedBySerial;
-    }
-    
-    // Move running patient to top, keep others in serial order
-    const runningPatient = sortedBySerial[runningIndex];
-    const beforeRunning = sortedBySerial.slice(0, runningIndex);
-    const afterRunning = sortedBySerial.slice(runningIndex + 1);
-    
-    // Combine: Running -> Rest in serial order
-    return [runningPatient, ...afterRunning, ...beforeRunning];
+    return sortedByTime;
   }, [patients]);
 
   // Find running patient index and next patient index
@@ -97,7 +121,7 @@ export default function PatientList({ patients, breakStatus, appointmentNumber }
         <Text style={[styles.headerCell, styles.serialColumn]}>নং</Text>
         <Text style={[styles.headerCell, styles.nameColumn]}>নাম</Text>
         <Text style={[styles.headerCell, styles.statusColumn]}>অবস্থা</Text>
-        <Text style={[styles.headerCell, styles.timeColumn]}>সম্ভাব্য সময়</Text>
+        <Text style={[styles.headerCell, styles.timeColumn]}>সময়</Text>
       </View>
 
       {/* Patient List */}
@@ -115,6 +139,13 @@ export default function PatientList({ patients, breakStatus, appointmentNumber }
             // Check if this is the patient right after running (should have orange background)
             const isAfterRunning = runningIndex >= 0 && index === nextPatientIndex && patient.statusCode !== 'running';
             
+            // Determine text color based on background
+            // Light green (#90EE90) needs dark text, Orange (#FFA500) needs dark text
+            const needsLightText = false; // All current backgrounds are light, so use dark text
+            const hasColoredBackground = patient.statusCode === 'running' || 
+                                        patient.statusCode === 'next' || 
+                                        isAfterRunning;
+            
             return (
             <View
               key={patient.appointmentId}
@@ -125,10 +156,18 @@ export default function PatientList({ patients, breakStatus, appointmentNumber }
                 isAfterRunning && styles.afterRunningRow,
               ]}
             >
-              <Text style={[styles.cell, styles.serialColumn]}>
+              <Text style={[
+                styles.cell, 
+                styles.serialColumn,
+                hasColoredBackground && (needsLightText ? styles.cellTextDark : styles.cellTextLight)
+              ]}>
                 {patient.serialNumber}
               </Text>
-              <Text style={[styles.cell, styles.nameColumn]}>
+              <Text style={[
+                styles.cell, 
+                styles.nameColumn,
+                hasColoredBackground && (needsLightText ? styles.cellTextDark : styles.cellTextLight)
+              ]}>
                 {patient.patientName}
               </Text>
               <View
@@ -145,8 +184,12 @@ export default function PatientList({ patients, breakStatus, appointmentNumber }
                   {isAfterRunning ? 'এরপর' : patient.status}
                 </Text>
               </View>
-              <Text style={[styles.cell, styles.timeColumn]}>
-                {patient.estimatedTime}
+              <Text style={[
+                styles.cell, 
+                styles.timeColumn,
+                hasColoredBackground && (needsLightText ? styles.cellTextDark : styles.cellTextLight)
+              ]}>
+                {patient.appointmentTime || patient.estimatedTime || 'N/A'}
               </Text>
             </View>
             );
@@ -234,9 +277,9 @@ const styles = StyleSheet.create({
     borderLeftColor: '#32CD32',
   },
   nextRow: {
-    backgroundColor: '#228B22', // Dark green for next
+    backgroundColor: '#FFA500', // Orange for next (matching TV display)
     borderLeftWidth: 4,
-    borderLeftColor: '#006400',
+    borderLeftColor: '#FF8C00',
   },
   afterRunningRow: {
     backgroundColor: '#FFA500', // Orange for patient after running
@@ -248,6 +291,14 @@ const styles = StyleSheet.create({
     color: '#1a1a1a',
     textAlign: 'center',
     fontWeight: '500',
+  },
+  cellTextLight: {
+    color: '#000000', // Dark text for better readability on light green/orange backgrounds
+    fontWeight: '700', // Bolder text for better visibility
+  },
+  cellTextDark: {
+    color: '#FFFFFF', // White text for dark backgrounds
+    fontWeight: '700', // Bolder text for better visibility
   },
   statusCell: {
     paddingVertical: 6,
