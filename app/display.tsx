@@ -3,9 +3,10 @@ import {
   View,
   Text,
   StyleSheet,
-  ScrollView,
   ActivityIndicator,
-  RefreshControl,
+  Animated,
+  Dimensions,
+  Platform,
 } from 'react-native';
 import { apiService } from '../services/api';
 import DoctorProfileCard from '../components/DoctorProfileCard';
@@ -43,15 +44,18 @@ interface LiveData {
   timestamp: string;
 }
 
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
+
 export default function DisplayScreen() {
   const [liveData, setLiveData] = useState<LiveData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
   const refreshIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const scrollX = useRef(new Animated.Value(SCREEN_WIDTH)).current;
 
   useEffect(() => {
     loadLiveData();
     startAutoRefresh();
+    startTextScroll();
 
     return () => {
       if (refreshIntervalRef.current) {
@@ -60,11 +64,31 @@ export default function DisplayScreen() {
     };
   }, []);
 
+  console.log(67,'liveData', liveData);
+
   const startAutoRefresh = () => {
     // Refresh every 3 seconds for real-time updates
     refreshIntervalRef.current = setInterval(() => {
       loadLiveData(false);
     }, 3000);
+  };
+
+  const startTextScroll = () => {
+    // Auto-scroll text animation - continuous loop
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(scrollX, {
+          toValue: -SCREEN_WIDTH * 2,
+          duration: 60000, // 30 seconds for full scroll
+          useNativeDriver: true,
+        }),
+        Animated.timing(scrollX, {
+          toValue: SCREEN_WIDTH,
+          duration: 0,
+          useNativeDriver: true,
+        }),
+      ])
+    ).start();
   };
 
   const loadLiveData = async (showLoading = true) => {
@@ -78,13 +102,7 @@ export default function DisplayScreen() {
       console.error('Error loading live data:', error);
     } finally {
       setLoading(false);
-      setRefreshing(false);
     }
-  };
-
-  const onRefresh = () => {
-    setRefreshing(true);
-    loadLiveData(false);
   };
 
   if (loading && !liveData) {
@@ -106,36 +124,50 @@ export default function DisplayScreen() {
 
   return (
     <View style={styles.container}>
-      <ScrollView
-        style={styles.scrollView}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-        }
-      >
-        {/* Top Section: Doctor Profile and Patient List */}
-        <View style={styles.topSection}>
-          {/* Left: Doctor Profile */}
-          <View style={styles.leftPanel}>
-            <DoctorProfileCard doctor={liveData.doctor} />
-          </View>
-
-          {/* Right: Patient List */}
-          <View style={styles.rightPanel}>
-            <PatientList
-              patients={liveData.patients}
-              breakStatus={liveData.breakStatus}
-              appointmentNumber={liveData.chamber.appointmentNumber}
-            />
-          </View>
+      {/* Main Content Area - 85% height */}
+      <View style={styles.mainContent}>
+        {/* Left Panel: Doctor Card + YouTube Video */}
+        <View style={styles.leftPanel}>
+          <DoctorProfileCard doctor={liveData.doctor} />
+          
+          {/* YouTube Video below Doctor Card */}
+          {liveData.chamber.videoUrl && (
+            <View style={styles.videoContainer}>
+              <YouTubePlayer videoUrl={liveData.chamber.videoUrl} />
+            </View>
+          )}
         </View>
 
-        {/* Bottom Section: YouTube Video */}
-        {liveData.chamber.videoUrl && (
-          <View style={styles.videoSection}>
-            <YouTubePlayer videoUrl={liveData.chamber.videoUrl} />
-          </View>
-        )}
-      </ScrollView>
+        {/* Right Panel: Appointment List */}
+        <View style={styles.rightPanel}>
+          <PatientList
+            patients={liveData.patients}
+            breakStatus={liveData.breakStatus}
+            appointmentNumber={liveData.chamber.appointmentNumber}
+          />
+        </View>
+      </View>
+
+      {/* Auto-scrolling Bottom Banner */}
+      <View style={styles.bottomBanner}>
+        <Animated.View
+          style={[
+            styles.scrollingTextContainer,
+            {
+              transform: [{ translateX: scrollX }],
+            },
+          ]}
+        >
+          <Text style={styles.scrollingText}>
+            সিরিয়াল অনুযায়ী সেবা দেয়া হবে তাই আপনার সিরিয়াল আসা পর্যন্ত অপেক্ষা করুন। ধন্যবাদ। • Service will be provided according to the serial, so please wait until your turn comes. Thank you. • 
+          </Text>
+        </Animated.View>
+      </View>
+
+      {/* Footer */}
+      <View style={styles.footer}>
+        <Text style={styles.footerText}>Powered by Sakura App</Text>
+      </View>
     </View>
   );
 }
@@ -145,8 +177,59 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#f5f5f5',
   },
-  scrollView: {
-    flex: 1,
+  mainContent: {
+    flexDirection: 'row',
+    height: '85%', // 85% of screen height
+  },
+  leftPanel: {
+    width: '30%',
+    padding: 20,
+    backgroundColor: '#ffffff',
+    justifyContent: 'flex-start',
+  },
+  videoContainer: {
+    marginTop: 20,
+    height: 300,
+    width: '100%',
+    borderRadius: 10,
+    overflow: 'hidden',
+    backgroundColor: '#000',
+  },
+  rightPanel: {
+    width: '70%',
+    padding: 20,
+    backgroundColor: '#f9f9f9',
+    height: '100%',
+  },
+  bottomBanner: {
+    height: 50,
+    backgroundColor: '#2c2c2c',
+    overflow: 'hidden',
+    justifyContent: 'center',
+  },
+  scrollingTextContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  scrollingText: {
+    color: '#ffffff',
+    fontSize: 18,
+    fontWeight: '500',
+    ...(Platform.OS === 'web' ? {
+      whiteSpace: 'nowrap',
+    } : {}),
+    paddingHorizontal: 20,
+  },
+  footer: {
+    height: 40,
+    backgroundColor: '#1a1a1a',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  footerText: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: '600',
   },
   loadingContainer: {
     flex: 1,
@@ -168,27 +251,6 @@ const styles = StyleSheet.create({
   errorText: {
     fontSize: 18,
     color: '#ff0000',
-  },
-  topSection: {
-    flexDirection: 'row',
-    minHeight: 400,
-  },
-  leftPanel: {
-    width: '30%',
-    padding: 20,
-    backgroundColor: '#ffffff',
-  },
-  rightPanel: {
-    width: '70%',
-    padding: 20,
-    backgroundColor: '#f9f9f9',
-    height: '80%', // 80% of screen height
-  },
-  videoSection: {
-    width: '100%',
-    height: 400,
-    backgroundColor: '#000',
-    marginTop: 20,
   },
 });
 

@@ -216,7 +216,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.3,
   },
   listContainer: {
-    maxHeight: SCREEN_HEIGHT * 0.8, // 80% of screen height
+    flex: 1,
   },
   row: {
     flexDirection: 'row',
