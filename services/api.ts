@@ -1,8 +1,5 @@
 import axios from 'axios';
-
-const API_BASE_URL = __DEV__
-  ? 'http://localhost:3000/api'
-  : 'https://api.sakura.com/api';
+import { API_BASE_URL } from '../config/api.config';
 
 const apiClient = axios.create({
   baseURL: API_BASE_URL,

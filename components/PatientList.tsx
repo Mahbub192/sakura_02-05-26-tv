@@ -17,10 +17,12 @@ interface Patient {
 interface Props {
   patients: Patient[];
   breakStatus: boolean;
+  breakNotes?: string;
+  breakDuration?: number;
   appointmentNumber: string;
 }
 
-export default function PatientList({ patients, breakStatus, appointmentNumber }: Props) {
+export default function PatientList({ patients, breakStatus, breakNotes, breakDuration, appointmentNumber }: Props) {
   const scrollViewRef = useRef<ScrollView>(null);
   const previousRunningIndexRef = useRef<number>(-1);
 
@@ -106,9 +108,22 @@ export default function PatientList({ patients, breakStatus, appointmentNumber }
 
   return (
     <View style={styles.container}>
+      {/* Break Notice - On top of the card */}
+      {breakStatus && (breakNotes || breakDuration) && (
+        <View style={styles.breakNotice}>
+          <Text style={styles.breakNoticeTitle}>ডাক্তার বিরতিতে</Text>
+          {breakNotes && (
+            <Text style={styles.breakNoticeText}>{breakNotes}</Text>
+          )}
+          {breakDuration && (
+            <Text style={styles.breakNoticeDuration}>সময়: {breakDuration} মিনিট</Text>
+          )}
+        </View>
+      )}
+
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Appointment Number: {appointmentNumber}</Text>
+        {/* <Text style={styles.headerTitle}>Appointment Number: {appointmentNumber}</Text> */}
         {breakStatus && (
           <View style={styles.breakBadge}>
             <Text style={styles.breakText}>বিরতি</Text>
@@ -339,6 +354,43 @@ const styles = StyleSheet.create({
   emptyText: {
     fontSize: 18,
     color: '#999',
+  },
+  breakNotice: {
+    backgroundColor: '#FFF9E6',
+    borderWidth: 4,
+    borderColor: '#FFA500',
+    borderRadius: 12,
+    padding: 24,
+    marginBottom: 20,
+    alignItems: 'center',
+    width: '100%',
+    shadowColor: '#FFA500',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  breakNoticeTitle: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: '#FF8C00',
+    marginBottom: 12,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+  },
+  breakNoticeText: {
+    fontSize: 22,
+    color: '#1a1a1a',
+    textAlign: 'center',
+    marginBottom: 10,
+    fontWeight: '700',
+    lineHeight: 30,
+  },
+  breakNoticeDuration: {
+    fontSize: 20,
+    color: '#FF8C00',
+    fontWeight: '700',
+    marginTop: 4,
   },
 });
 

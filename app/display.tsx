@@ -41,6 +41,8 @@ interface LiveData {
   };
   patients: Patient[];
   breakStatus: boolean;
+  breakNotes?: string;
+  breakDuration?: number;
   timestamp: string;
 }
 
@@ -143,6 +145,8 @@ export default function DisplayScreen() {
           <PatientList
             patients={liveData.patients}
             breakStatus={liveData.breakStatus}
+            breakNotes={liveData.breakNotes}
+            breakDuration={liveData.breakDuration}
             appointmentNumber={liveData.chamber.appointmentNumber}
           />
         </View>
