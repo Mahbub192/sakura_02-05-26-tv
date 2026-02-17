@@ -44,7 +44,14 @@
     "plugins": [
       "expo-router"
     ],
-    "scheme": "sakura-tv"
+    "scheme": "sakura-tv",
+    "extra": {
+      "router": {
+        "origin": false
+      },
+      "eas": {
+        "projectId": "dc61eab2-dab0-482b-bbb2-bdf16bbed992"
+      }
+    }
   }
 }
-
